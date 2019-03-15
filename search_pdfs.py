@@ -1,10 +1,12 @@
 import os
+import numpy as np
 import pandas as pd
 import re
 import sys
 import textract
 
-pdf_dir = sys.argv[1]
+min_chars_in_file = 10
+output_file = 'pdf_search_output.csv'
 
 # Dashes are removed so co-op should be coop:
 search_terms = [
@@ -21,7 +23,7 @@ search_terms = [
 ]
 search_terms = [s.lower() for s in search_terms]
 
-min_chars_in_file = 10
+pdf_dir = sys.argv[1]
 
 files = [f for f in os.listdir(pdf_dir) if os.path.isfile(pdf_dir + f)]
 files = [f for f in files if f.endswith(('.pdf', '.PDF'))]
@@ -60,13 +62,22 @@ for filename in files:
 
     if success: total_parsed += 1
 
-print("%s out of %s files were successfully parsed." % (total_parsed, total))
+print("\n%s out of %s files were successfully parsed." % (total_parsed, total))
 
 avg = sum(lengths) / len(lengths)
 print("Average length: %s chars." % avg)
 
 results['Total'] = results.iloc[:,2:].sum(axis = 1)
 results = results.sort_values(by = 'Total', ascending = False)
-results.to_csv('pdf_search_output.csv', index = None, header = True)
+
+print("Found an average of %s hits per document." % np.mean(results['Total']))
+print("%s out of %s had a hit." % (len(np.where(results['Total'] > 0)[0]), total))
+
+results.to_csv(output_file, index = None, header = True)
+print("Results saved to %s" % output_file)
+
+colsums = results.sum(axis = 0)[2:]
+print("Overall Hit Count:")
+print(colsums)
 
 # import code; code.interact(local=dict(globals(), **locals()))
