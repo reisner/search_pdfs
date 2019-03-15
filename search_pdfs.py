@@ -1,9 +1,10 @@
 import os
-import pandas
+import pandas as pd
 import re
+import sys
 import textract
 
-pdf_dir = '/Users/eisner/data/Plans_In_Effect/'
+pdf_dir = sys.argv[1]
 
 # Dashes are removed so co-op should be coop:
 search_terms = [
@@ -18,6 +19,7 @@ search_terms = [
     'coop housing',
     'cooperative housing'
 ]
+search_terms = [s.lower() for s in search_terms]
 
 min_chars_in_file = 10
 
@@ -28,8 +30,9 @@ total = len(files)
 total_parsed = 0
 count = 0
 lengths = []
+results = pd.DataFrame(columns = ['filename', 'doc_length'] + search_terms)
 print("Processing %s files..." % total)
-for filename in files[:10]:
+for filename in files:
     count += 1
     if count % 25 == 0: print("Finished %s" % count)
     filepath = pdf_dir + filename
@@ -45,8 +48,14 @@ for filename in files[:10]:
         text = text.replace(b"-", b"") # Remove dashes for easier searching
         text = re.sub(b' +', b' ', text)
 
-
-        import code; code.interact(local=dict(globals(), **locals()))
+        row_data = {'filename': filename, 'doc_length': length}
+        for term in search_terms:
+            text = str(text)
+            occurences = 0
+            if term in text:
+                occurences = len(text.split(term)) - 1
+            row_data[term] = occurences
+        results = results.append(row_data, ignore_index = True)
         success = True
 
     if success: total_parsed += 1
@@ -55,4 +64,9 @@ print("%s out of %s files were successfully parsed." % (total_parsed, total))
 
 avg = sum(lengths) / len(lengths)
 print("Average length: %s chars." % avg)
-import code; code.interact(local=dict(globals(), **locals()))
+
+results['Total'] = results.iloc[:,2:].sum(axis = 1)
+results = results.sort_values(by = 'Total', ascending = False)
+results.to_csv('pdf_search_output.csv', index = None, header = True)
+
+# import code; code.interact(local=dict(globals(), **locals()))
